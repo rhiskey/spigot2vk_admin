@@ -14,8 +14,6 @@ import (
 	"time"
 
 	vkapi "github.com/Dimonchik0036/vk-api"
-	//gonfig "github.com/tkanos/gonfig"
-	//dg *discordgo.Session
 )
 
 // Config - data structure to work with json
@@ -47,13 +45,6 @@ var (
 
 	cfg map[string]interface{}
 )
-
-// check - Reading files requires checking most calls for errors.
-func check(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
 
 // Config
 func init() {
@@ -88,7 +79,7 @@ func init() {
 }
 
 func main() {
-	var isComm bool
+	var isComm bool //isCommunity?
 	isComm = false
 
 	// Goroutine
