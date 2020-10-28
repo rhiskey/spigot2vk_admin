@@ -8,6 +8,7 @@ gox -os="linux"
 gox -osarch="linux/amd64"
 ```
 2. Place `config.json` nearby your `spigot2vk_admin` executable and run;
+
 `config.json`:
 ```
 {
