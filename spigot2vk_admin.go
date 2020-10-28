@@ -9,7 +9,10 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
+
+	// structs "structs/structs"
 	"syscall"
 	"time"
 
@@ -27,7 +30,18 @@ type Config struct {
 	portTCPConsoleUplink   string // outcoming messages FROM VK Admin Chat to MC
 	portTCPConsoleDownlink string // incoming messages  FROM MC to VK Admin Chat
 
+	portTCPConsoleJSONUplink   string // outcoming messages FROM VK Admin Chat to MC
+	portTCPConsoleJSONDownlink string // incoming messages  FROM MC to VK Admin Chat
+
 	IDList []int64 //Init Slice typeof int64 (analog of List in GOlang), admin VK ID
+}
+
+// MessageJSON - data structure to work with json
+type MessageJSON struct {
+	TypeValue string `json:"type"`
+	payload   string
+	ip        string
+	port      int64
 }
 
 //INITIAL VARS
@@ -41,10 +55,19 @@ var (
 	portTCPConsoleUplink   string
 	portTCPConsoleDownlink string
 
+	portTCPConsoleJSONUplink   string
+	portTCPConsoleJSONDownlink string
+
 	IDList []int64 //Init Slice typeof int64 (analog of List in GOlang)
 
 	cfg map[string]interface{}
+	//msg map[string]interface{}
+	str     strings.Builder // Collect one big string -> send to VK
+	msgJSON struct{}        //structure of msg
 )
+
+// TODO: TCPListener2 (MC->VK) one more create read JSON on different port
+// TODO: TCPListener2 (VK ->VK) one more create read JSON on different port
 
 // Config
 func init() {
@@ -73,9 +96,11 @@ func init() {
 	portTCPChatDownlink = cfg["portTCPChatDownlink"].(string)
 	portTCPConsoleUplink = cfg["portTCPConsoleUplink"].(string)
 	portTCPConsoleDownlink = cfg["portTCPConsoleDownlink"].(string)
+	portTCPConsoleJSONUplink = cfg["portTCPConsoleJsonUplink"].(string)
+	portTCPConsoleJSONDownlink = cfg["portTCPConsoleJsonDownlink"].(string)
 
 	IDList = append(IDList, myID, grishaID)
-	//fmt.Println(IDList)
+	//msgJSON = new(structs.MessageJSON)
 }
 
 func main() {
@@ -91,6 +116,10 @@ func main() {
 	} else {
 		go TCPServer(portTCPConsoleDownlink, false) //Read Console - Send ADMIN CONFA CONSOLE CHAT
 		go getFromVK(vkUserToken, false)            //Read CONSOLE CHAT
+
+		go TCPListenerJSON(portTCPConsoleJSONDownlink) //Read Console through JSON -> Send to VK
+		//go getFromVK
+
 	}
 	// Wait here until CTRL-C or other term signal is received.
 	fmt.Println("Bot is now running.  Press CTRL-C to exit.")
@@ -188,6 +217,7 @@ func getFromVK(token string, isCommunity bool) { //isCommunity == true => messag
 				//var prefixIndex = strings.Index(msgText, '/')
 				formattedMsg := strings.Replace(msgText, "/", "", 1)
 				go TCPClient(formattedMsg, portTCPConsoleUplink)
+				go TCPClientJSON(formattedMsg, portTCPConsoleJSONUplink)
 			}
 		}
 
@@ -215,7 +245,28 @@ func TCPServer(port string, isComm bool) {
 	}
 }
 
-// обработка подключения
+// TCPListenerJSON - get Json message FROM MC and send to VK
+func TCPListenerJSON(port string) {
+	listener, err := net.Listen("tcp", port)
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer listener.Close()
+	fmt.Printf("Server is listening..: %v\n", port)
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			fmt.Println(err)
+			//conn.Close()
+		}
+		go handleConnectionJSON(conn) // goroutine to handle request
+		time.Sleep(2000 * time.Millisecond)
+	}
+}
+
+// TCP handler
 func handleConnection(conn net.Conn, isCommunity bool) {
 	defer conn.Close()
 	scanner := bufio.NewScanner(conn)
@@ -224,6 +275,10 @@ func handleConnection(conn net.Conn, isCommunity bool) {
 		message := scanner.Text()
 		fmt.Println("Message Received:", message)
 
+		// TODO:
+		// Collect message in big string, with /n on each EOL
+
+		// if length >2000, then send, refresh string
 		//Stack or Queue
 		if isCommunity == true {
 			sendToVK(vkCommunityToken, message, IDList, consoleChatID, true)
@@ -232,6 +287,47 @@ func handleConnection(conn net.Conn, isCommunity bool) {
 			sendToVK(vkUserToken, message, IDList, consoleChatID, false)
 			time.Sleep(2000 * time.Millisecond)
 		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		fmt.Println("error:", err)
+	}
+}
+
+// TCP handler from console to VK
+func handleConnectionJSON(conn net.Conn) {
+	defer conn.Close()
+	scanner := bufio.NewScanner(conn)
+
+	for scanner.Scan() {
+		message := scanner.Text()
+		fmt.Println("Json received:", message)
+
+		jsonBytes := []byte(message)
+
+		msgStruct := MessageJSON{}
+		// Json Deserialize to Class type,payload,ip,port -> send only json.payload
+		json.Unmarshal(jsonBytes, &msgStruct)
+
+		msgToSend := msgStruct.payload
+		// typeOfMessage := msgStruct.typeValue
+		// ip := msgStruct.ip
+		// port := msgStruct.port
+
+		/// TODO: Queue
+		/// Collect message in big string, with /n on each EOL
+		// str.WriteString(msgToSend)
+		// if str.Len()+len(msgToSend)+1 > 2000 {
+		// 	sendToVK(vkUserToken, str.String(), IDList, consoleChatID, false)
+		// 	time.Sleep(2000 * time.Millisecond)
+		// 	str.Reset()
+		// } else {
+		// 	sendToVK(vkUserToken, str.String(), IDList, consoleChatID, false)
+		// 	time.Sleep(2000 * time.Millisecond)
+		// }
+
+		sendToVK(vkUserToken, msgToSend, IDList, consoleChatID, false)
+		time.Sleep(2000 * time.Millisecond)
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -254,4 +350,35 @@ func TCPClient(message string, port string) {
 		return
 	}
 
+}
+
+// TCPClientJSON - send msg from VK to MC in JSON
+func TCPClientJSON(message string, port string) {
+	conn, err := net.Dial("tcp", port)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer conn.Close()
+	// TODO: TEST conversation to INT
+	portInt, err := strconv.ParseInt(port, 10, 64)
+	if err != nil {
+		// handle error
+		fmt.Println(err)
+		os.Exit(2)
+	}
+	messageVar := &MessageJSON{
+		TypeValue: "console",
+		payload:   message,
+		ip:        "",
+		port:      portInt,
+	}
+	//Create JSON Serialize -> send
+	jsonString, _ := json.Marshal(messageVar)
+
+	// send JSON to spigot server
+	if n, err := conn.Write([]byte(jsonString)); n == 0 || err != nil {
+		fmt.Println(err)
+		return
+	}
 }
