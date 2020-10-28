@@ -121,16 +121,16 @@ func sendToVK(token string, message string, IDs []int64, consoleID int64, isComm
 		//Send All users
 		for _, id := range IDs {
 			client.SendMessage(vkapi.NewMessage(vkapi.NewDstFromUserID(id), message))
-			time.Sleep(1500 * time.Millisecond)
+			//time.Sleep(1500 * time.Millisecond)
 		}
 	} else {
 		//send to ADMIN CHAT
 		_, err := client.SendMessage(vkapi.NewMessage(vkapi.NewDstFromChatID(consoleID), message))
-
+		time.Sleep(2 * time.Second)
 		if err != nil {
 			print("Error Code: \n")
 			println(err)
-			time.Sleep(2 * time.Second)
+			//time.Sleep(2 * time.Second)
 		}
 	}
 }
@@ -211,6 +211,7 @@ func TCPServer(port string, isComm bool) {
 			//conn.Close()
 		}
 		go handleConnection(conn, isComm) // goroutine to handle request
+		time.Sleep(2000 * time.Millisecond)
 	}
 }
 
@@ -226,6 +227,7 @@ func handleConnection(conn net.Conn, isCommunity bool) {
 		//Stack or Queue
 		if isCommunity == true {
 			sendToVK(vkCommunityToken, message, IDList, consoleChatID, true)
+			time.Sleep(2000 * time.Millisecond)
 		} else {
 			sendToVK(vkUserToken, message, IDList, consoleChatID, false)
 			time.Sleep(2000 * time.Millisecond)
