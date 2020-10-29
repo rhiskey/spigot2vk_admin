@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"container/list"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -11,7 +12,6 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
-	 "container/list"
 
 	// structs "structs/structs"
 	"syscall"
@@ -61,17 +61,20 @@ var (
 
 	IDList []int64 //Init Slice typeof int64 (analog of List in GOlang)
 
-	cfg     map[string]interface{}
-	msg     map[string]interface{}
-	str     strings.Builder // Collect one big string -> send to VK
-	msgJSON struct{}        //structure of msg
+	cfg map[string]interface{}
+	msg map[string]interface{}
+	//str     strings.Builder // Collect one big string -> send to VK
+	msgJSON struct{} //structure of msg
 
-	// Linked list
-	queue := list.New()
+	queue *list.List
 )
 
 // Config
 func init() {
+
+	// Linked list
+	queue = list.New()
+
 	// Read JSON file as []byte
 	jsonByte, err := ioutil.ReadFile("config.json")
 	if err != nil {
@@ -286,21 +289,21 @@ func handleConnection(conn net.Conn, isCommunity bool) {
 			time.Sleep(2000 * time.Millisecond)
 		} else {
 
-			if queue.Len() > 2 {
-				// Send message 
+			if queue.Len() > 2 { // send if msgs >=3
+				// Send message
 				message2send := queue.Front() //First Element
-				message2send.Value // -> to VK
+				//message2send.Value            // -> to VK
 
-				sendToVK(vkUserToken, message2send, IDList, consoleChatID, false)
+				sendToVK(vkUserToken, message2send.Value.(string), IDList, consoleChatID, false)
 				time.Sleep(2000 * time.Millisecond)
 
 				queue.Remove(message2send) // Dequee
-			} else{
-				queue.PushBack(message)
+			} else {
+				queue.PushBack(message) //if msg <=2 ->
 			}
 
 			//queue.PushBack(message)
-			
+
 			//sendToVK(vkUserToken, message, IDList, consoleChatID, false)
 			//time.Sleep(2000 * time.Millisecond)
 		}

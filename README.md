@@ -24,3 +24,6 @@ gox -osarch="linux/amd64"
     "IDList": [VK_USER_ID_1, VK_USER_ID_2]
 }
 ```
+https://blog.golang.org/docker
+`docker build -t spigot2vk .`
+`docker run --name sp2vk --rm spigot2vk`
