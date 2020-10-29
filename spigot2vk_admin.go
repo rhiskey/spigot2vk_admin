@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	 "container/list"
 
 	// structs "structs/structs"
 	"syscall"
@@ -64,6 +65,9 @@ var (
 	msg     map[string]interface{}
 	str     strings.Builder // Collect one big string -> send to VK
 	msgJSON struct{}        //structure of msg
+
+	// Linked list
+	queue := list.New()
 )
 
 // Config
@@ -281,8 +285,24 @@ func handleConnection(conn net.Conn, isCommunity bool) {
 			sendToVK(vkCommunityToken, message, IDList, consoleChatID, true)
 			time.Sleep(2000 * time.Millisecond)
 		} else {
-			sendToVK(vkUserToken, message, IDList, consoleChatID, false)
-			time.Sleep(2000 * time.Millisecond)
+
+			if queue.Len() > 2 {
+				// Send message 
+				message2send := queue.Front() //First Element
+				message2send.Value // -> to VK
+
+				sendToVK(vkUserToken, message2send, IDList, consoleChatID, false)
+				time.Sleep(2000 * time.Millisecond)
+
+				queue.Remove(message2send) // Dequee
+			} else{
+				queue.PushBack(message)
+			}
+
+			//queue.PushBack(message)
+			
+			//sendToVK(vkUserToken, message, IDList, consoleChatID, false)
+			//time.Sleep(2000 * time.Millisecond)
 		}
 	}
 
