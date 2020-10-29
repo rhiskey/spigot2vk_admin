@@ -60,14 +60,11 @@ var (
 
 	IDList []int64 //Init Slice typeof int64 (analog of List in GOlang)
 
-	cfg map[string]interface{}
-	//msg map[string]interface{}
+	cfg     map[string]interface{}
+	msg     map[string]interface{}
 	str     strings.Builder // Collect one big string -> send to VK
 	msgJSON struct{}        //structure of msg
 )
-
-// TODO: TCPListener2 (MC->VK) one more create read JSON on different port
-// TODO: TCPListener2 (VK ->VK) one more create read JSON on different port
 
 // Config
 func init() {
@@ -305,11 +302,16 @@ func handleConnectionJSON(conn net.Conn) {
 
 		jsonBytes := []byte(message)
 
-		msgStruct := MessageJSON{}
+		//msgStruct := MessageJSON{}
 		// Json Deserialize to Class type,payload,ip,port -> send only json.payload
-		json.Unmarshal(jsonBytes, &msgStruct)
+		json.Unmarshal(jsonBytes, &msg)
+		//json.Unmarshal(jsonBytes, &msgStruct)
 
-		msgToSend := msgStruct.payload
+		msgToSend := msg["payload"].(string)
+		//msgToSend := msgStruct.payload
+
+		//fmt.Println("payload:", msgToSend)
+
 		// typeOfMessage := msgStruct.typeValue
 		// ip := msgStruct.ip
 		// port := msgStruct.port
@@ -361,21 +363,25 @@ func TCPClientJSON(message string, port string) {
 	}
 	defer conn.Close()
 	// TODO: TEST conversation to INT
-	portInt, err := strconv.ParseInt(port, 10, 64)
-	if err != nil {
+
+	//portInt, err := strconv.ParseInt(port, 10, 64)
+	_, err2 := strconv.ParseInt(port, 10, 64)
+	if err2 != nil {
 		// handle error
-		fmt.Println(err)
+		fmt.Println(err2)
 		os.Exit(2)
 	}
 	messageVar := &MessageJSON{
 		TypeValue: "console",
 		payload:   message,
-		ip:        "",
-		port:      portInt,
+		//ip:        "",
+		//port:      portInt,
 	}
 	//Create JSON Serialize -> send
 	jsonString, _ := json.Marshal(messageVar)
+	fmt.Println(jsonString)
 
+	// TODO:
 	// send JSON to spigot server
 	if n, err := conn.Write([]byte(jsonString)); n == 0 || err != nil {
 		fmt.Println(err)
