@@ -9,6 +9,9 @@ gox -osarch="linux/amd64"
 ```
 2. Place `config.json` nearby your `spigot2vk_admin` executable and run;
 
+By default listens on ports:
+8338, 8336
+
 `config.json`:
 ```
 {

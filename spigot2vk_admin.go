@@ -35,6 +35,9 @@ type Config struct {
 	portTCPConsoleJSONDownlink string // incoming messages  FROM MC to VK Admin Chat
 
 	IDList []int64 //Init Slice typeof int64 (analog of List in GOlang), admin VK ID
+
+	enableJSON  string
+	isCommunity string
 }
 
 // MessageJSON - data structure to work with json
@@ -61,8 +64,10 @@ var (
 
 	IDList []int64 //Init Slice typeof int64 (analog of List in GOlang)
 
-	cfg map[string]interface{}
-	msg map[string]interface{}
+	enableJSON string
+	isComm     string
+	cfg        map[string]interface{}
+	msg        map[string]interface{}
 	//str     strings.Builder // Collect one big string -> send to VK
 	msgJSON struct{} //structure of msg
 
@@ -104,16 +109,21 @@ func init() {
 	portTCPConsoleJSONDownlink = cfg["portTCPConsoleJsonDownlink"].(string)
 
 	IDList = append(IDList, myID, grishaID)
+
+	//eJ := cfg["enableJSON"].(string)
+	enableJSON = cfg["enableJSON"].(string)
+	isComm = cfg["isCommunity"].(string)
 	//msgJSON = new(structs.MessageJSON)
+	//fmt.Println(enableJSON)
 }
 
 func main() {
-	var isComm bool //isCommunity?
-	isComm = false
+	//var isComm bool //isCommunity?
+	//isComm = false
 
 	// Goroutine
 	//JavaPlugin Socket TCP Part (Get message from Java #)
-	if isComm == true {
+	if isComm == "true" {
 		go TCPServer(portTCPChatDownlink, true) //Read Chat - Send BOT VK
 		////Check VK messages in Public Group
 		go getFromVK(vkCommunityToken, true) //Read VK BOT
@@ -121,10 +131,14 @@ func main() {
 		go TCPServer(portTCPConsoleDownlink, false) //Read Console - Send ADMIN CONFA CONSOLE CHAT
 		go getFromVK(vkUserToken, false)            //Read CONSOLE CHAT
 
-		go TCPListenerJSON(portTCPConsoleJSONDownlink) //Read Console through JSON -> Send to VK
+		if enableJSON == "true" {
+			go TCPListenerJSON(portTCPConsoleJSONDownlink)
+		} //Read Console through JSON -> Send to VK
 		//go getFromVK
-
 	}
+
+	go messageSender()
+
 	// Wait here until CTRL-C or other term signal is received.
 	fmt.Println("Bot is now running.  Press CTRL-C to exit.")
 	sc := make(chan os.Signal, 1)
@@ -221,7 +235,9 @@ func getFromVK(token string, isCommunity bool) { //isCommunity == true => messag
 				//var prefixIndex = strings.Index(msgText, '/')
 				formattedMsg := strings.Replace(msgText, "/", "", 1)
 				go TCPClient(formattedMsg, portTCPConsoleUplink)
-				go TCPClientJSON(formattedMsg, portTCPConsoleJSONUplink)
+				if enableJSON == "true" {
+					go TCPClientJSON(formattedMsg, portTCPConsoleJSONUplink)
+				}
 			}
 		}
 
@@ -270,6 +286,37 @@ func TCPListenerJSON(port string) {
 	}
 }
 
+// TODO: Spamming one message
+func messageSender() {
+	for {
+		if queue.Len() > 0 {
+			fmt.Println("Queue size >0 ")
+			stringBig := ""
+			mess := queue.Front()
+			message2send := mess.Value.(string) //First Element
+			queue.Remove(mess)
+
+			for len(message2send) > 0 {
+				if (len(stringBig) + len(message2send) + 1) > 2000 {
+					stringBig = ""
+				}
+				stringBig += message2send + "\n"
+				//fmt.Println(stringBig)
+
+				mess := queue.Front()
+				message2send = mess.Value.(string)
+				queue.Remove(mess)
+			}
+
+			if len(message2send) > 0 {
+				sendToVK(vkUserToken, message2send, IDList, consoleChatID, false)
+			}
+			//time.Sleep(2000 * time.Millisecond)
+		}
+		time.Sleep(2000 * time.Millisecond)
+	}
+}
+
 // TCP handler
 func handleConnection(conn net.Conn, isCommunity bool) {
 	defer conn.Close()
@@ -279,33 +326,15 @@ func handleConnection(conn net.Conn, isCommunity bool) {
 		message := scanner.Text()
 		fmt.Println("Message Received:", message)
 
-		// TODO:
-		// Collect message in big string, with /n on each EOL
-
-		// if length >2000, then send, refresh string
-		//Stack or Queue
 		if isCommunity == true {
 			sendToVK(vkCommunityToken, message, IDList, consoleChatID, true)
 			time.Sleep(2000 * time.Millisecond)
 		} else {
-
-			if queue.Len() > 2 { // send if msgs >=3
-				// Send message
-				message2send := queue.Front() //First Element
-				//message2send.Value            // -> to VK
-
-				sendToVK(vkUserToken, message2send.Value.(string), IDList, consoleChatID, false)
-				time.Sleep(2000 * time.Millisecond)
-
-				queue.Remove(message2send) // Dequee
-			} else {
-				queue.PushBack(message) //if msg <=2 ->
-			}
-
+			//TODO:
 			//queue.PushBack(message)
 
-			//sendToVK(vkUserToken, message, IDList, consoleChatID, false)
-			//time.Sleep(2000 * time.Millisecond)
+			sendToVK(vkUserToken, message, IDList, consoleChatID, false)
+			time.Sleep(2000 * time.Millisecond)
 		}
 	}
 
