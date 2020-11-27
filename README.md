@@ -1,5 +1,12 @@
+![GitHub language count](https://img.shields.io/github/languages/count/rhiskey/spigot2vk_admin) ![Discord](https://img.shields.io/discord/224962875716796418) ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/rhiskey/spigot2vk_admin) ![Lines of code](https://img.shields.io/tokei/lines/github/rhiskey/spigot2vk_admin) ![GitHub](https://img.shields.io/github/license/rhiskey/spigot2vk_admin)
+![GitHub followers](https://img.shields.io/github/followers/rhiskey?label=Follow%20me&style=social)
+
+![GitHub Repo stars](https://img.shields.io/github/stars/rhiskey/spigot2vk_admin?style=social)
 # spigot2vk_admin
-Resend messages from TCP port to VK Conversation vise versa
+Resend messages from SpigotMc2Vk-Public to VK/Telegram Conversation vise versa
+
+![Minecraft Console To Telegram Demo](https://media.giphy.com/media/r1ucxbJyQeoYPfXzXR/giphy.gif)
+
 1. Build exec file for: `gox`
 
 You can specify package or platform
