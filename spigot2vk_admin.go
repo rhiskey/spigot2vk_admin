@@ -18,6 +18,7 @@ import (
 	"time"
 
 	vkapi "github.com/Dimonchik0036/vk-api"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 // Config - data structure to work with json
@@ -38,6 +39,9 @@ type Config struct {
 
 	enableJSON  string
 	isCommunity string
+
+	tgBotToken      string
+	consoleChatIDTG int64
 }
 
 // MessageJSON - data structure to work with json
@@ -72,6 +76,16 @@ var (
 	msgJSON struct{} //structure of msg
 
 	queue *list.List
+
+	hostRMQ string
+	portRMQ int64
+
+	tgBotToken string
+
+	bot *tgbotapi.BotAPI
+	u   tgbotapi.UpdateConfig
+
+	consoleChatIDTG int64
 )
 
 // Config
@@ -107,7 +121,7 @@ func init() {
 	portTCPConsoleDownlink = cfg["portTCPConsoleDownlink"].(string)
 	portTCPConsoleJSONUplink = cfg["portTCPConsoleJsonUplink"].(string)
 	portTCPConsoleJSONDownlink = cfg["portTCPConsoleJsonDownlink"].(string)
-
+	tgBotToken = cfg["tgBotToken"].(string)
 	IDList = append(IDList, myID, grishaID)
 
 	//eJ := cfg["enableJSON"].(string)
@@ -115,6 +129,11 @@ func init() {
 	isComm = cfg["isCommunity"].(string)
 	//msgJSON = new(structs.MessageJSON)
 	//fmt.Println(enableJSON)
+	hostRMQ = "amqp://guest:guest@localhost"
+	portRMQ = 5672
+
+	consoleChatIDTG = int64(cfg["consoleChatIDTG"].(float64))
+
 }
 
 func main() {
@@ -130,6 +149,7 @@ func main() {
 	} else {
 		go TCPServer(portTCPConsoleDownlink, false) //Read Console - Send ADMIN CONFA CONSOLE CHAT
 		go getFromVK(vkUserToken, false)            //Read CONSOLE CHAT
+		go getFromTG(false)
 
 		if enableJSON == "true" {
 			go TCPListenerJSON(portTCPConsoleJSONDownlink)
@@ -137,7 +157,7 @@ func main() {
 		//go getFromVK
 	}
 
-	go messageSender()
+	//go messageSender()
 
 	// Wait here until CTRL-C or other term signal is received.
 	fmt.Println("Bot is now running.  Press CTRL-C to exit.")
@@ -145,6 +165,10 @@ func main() {
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
 	<-sc
 }
+
+// func RabbitMQEmitter(host string, port int64) {
+
+// }
 
 //This Function will be called each time when need to send msg to VK
 func sendToVK(token string, message string, IDs []int64, consoleID int64, isCommunity bool) {
@@ -235,6 +259,10 @@ func getFromVK(token string, isCommunity bool) { //isCommunity == true => messag
 				//var prefixIndex = strings.Index(msgText, '/')
 				formattedMsg := strings.Replace(msgText, "/", "", 1)
 				go TCPClient(formattedMsg, portTCPConsoleUplink)
+				//vkUser:= update.Message.FromID
+				tgMsg := "[VK]: " + formattedMsg
+				go sendToTG(tgMsg)
+
 				if enableJSON == "true" {
 					go TCPClientJSON(formattedMsg, portTCPConsoleJSONUplink)
 				}
@@ -334,6 +362,7 @@ func handleConnection(conn net.Conn, isCommunity bool) {
 			//queue.PushBack(message)
 
 			sendToVK(vkUserToken, message, IDList, consoleChatID, false)
+			sendToTG(message)
 			time.Sleep(2000 * time.Millisecond)
 		}
 	}
@@ -439,4 +468,99 @@ func TCPClientJSON(message string, port string) {
 		fmt.Println(err)
 		return
 	}
+}
+
+// Get Messages from TG
+//TODO: NEED to read from channel instead of private messages
+func getFromTG(isComm bool) {
+
+	if isComm != true {
+		// Login to Telegram
+		bot, err := tgbotapi.NewBotAPI(tgBotToken)
+		if err != nil {
+			log.Panic(err)
+		}
+
+		bot.Debug = false
+
+		log.Printf("Authorized on account %s", bot.Self.UserName)
+
+		u = tgbotapi.NewUpdate(0)
+		u.Timeout = 60
+
+		updates, _ := bot.GetUpdatesChan(u)
+		//bot.GetUpdates(u)
+
+		for update := range updates {
+			// if update.Message == nil { // ignore any non-Message Updates
+			// 	continue
+			// }
+
+			if update.ChannelPost == nil {
+				continue
+			}
+
+			// if update.Message.Chat.IsChannel() == true {
+			// 	log.Printf("Channel: %d", update.Message.Chat.ID)
+			// }
+
+			if update.ChannelPost.Chat.ID == consoleChatIDTG {
+				log.Printf("%s", update.ChannelPost.Text)
+
+				//log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
+
+				//Send to MC & VK
+				go TCPClient(update.ChannelPost.Text, portTCPConsoleUplink)
+
+				formattedMsg := "[TG_CONSOLE]: " + update.ChannelPost.Text
+				go sendToVK(vkUserToken, formattedMsg, IDList, consoleChatID, false)
+			}
+		}
+	}
+}
+
+// Get From MC -> Send to TG
+func sendToTG(message string) {
+	// Login to Telegram
+	bot, err := tgbotapi.NewBotAPI(tgBotToken)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	bot.Debug = false
+
+	//log.Printf("Authorized on account %s", bot.Self.UserName)
+
+	msg := tgbotapi.NewMessage(consoleChatIDTG, message)
+	//msg.ReplyToMessageID = update.Message.MessageID
+	//log.Printf("%d", consoleChatIDTG)
+	//msg.ChatID = consoleChatIDTG
+	bot.Send(msg)
+}
+
+// RabbitMQ
+func failOnError(err error, msg string) {
+	if err != nil {
+		log.Fatalf("%s: %s", msg, err)
+	}
+}
+
+func bodyFrom(args []string) string {
+	var s string
+	if (len(args) < 3) || os.Args[2] == "" {
+		s = "hello"
+	} else {
+		s = strings.Join(args[2:], " ")
+	}
+	return s
+}
+
+func severityFrom(args []string) string {
+	var s string
+	if (len(args) < 2) || os.Args[1] == "" {
+		s = "info"
+	} else {
+		s = os.Args[1]
+	}
+	return s
 }
