@@ -145,7 +145,9 @@ func main() {
 	if isComm == "true" {
 		go TCPServer(portTCPChatDownlink, true) //Read Chat - Send BOT VK
 		////Check VK messages in Public Group
+		// If Error -> restart
 		go getFromVK(vkCommunityToken, true) //Read VK BOT
+
 	} else {
 		go TCPServer(portTCPConsoleDownlink, false) //Read Console - Send ADMIN CONFA CONSOLE CHAT
 		go getFromVK(vkUserToken, false)            //Read CONSOLE CHAT
@@ -174,6 +176,7 @@ func main() {
 func sendToVK(token string, message string, IDs []int64, consoleID int64, isCommunity bool) {
 	//IDs := []int{1,2,3}
 	//VK Part
+
 	client, err := vkapi.NewClientFromToken(token)
 	if err != nil {
 		log.Panic(err)
@@ -183,26 +186,39 @@ func sendToVK(token string, message string, IDs []int64, consoleID int64, isComm
 
 	//Do trycatch
 	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered in initLP", r)
+		}
 		if err := client.InitLongPoll(0, 2); err != nil {
 			log.Panic(err)
 			return
 		}
 	}()
 	if isCommunity == true {
-		//Send All users
-		for _, id := range IDs {
-			client.SendMessage(vkapi.NewMessage(vkapi.NewDstFromUserID(id), message))
-			//time.Sleep(1500 * time.Millisecond)
-		}
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Println("Recovered in SendMessage to Community VK", r)
+			}
+			//Send All users
+			for _, id := range IDs {
+				client.SendMessage(vkapi.NewMessage(vkapi.NewDstFromUserID(id), message))
+				//time.Sleep(1500 * time.Millisecond)
+			}
+		}()
 	} else {
 		//send to ADMIN CHAT
-		_, err := client.SendMessage(vkapi.NewMessage(vkapi.NewDstFromChatID(consoleID), message))
-		time.Sleep(2 * time.Second)
-		if err != nil {
-			print("Error Code: \n")
-			println(err)
-			//time.Sleep(2 * time.Second)
-		}
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Println("Recovered in SendMessage to Console VK ", r)
+			}
+			_, err := client.SendMessage(vkapi.NewMessage(vkapi.NewDstFromChatID(consoleID), message))
+			time.Sleep(2 * time.Second)
+			if err != nil {
+				print("Error Code: \n")
+				println(err)
+				//time.Sleep(2 * time.Second)
+			}
+		}()
 	}
 }
 
@@ -214,10 +230,14 @@ func getFromVK(token string, isCommunity bool) { //isCommunity == true => messag
 	}
 
 	client.Log(false)
-
-	if err := client.InitLongPoll(0, 2); err != nil {
-		log.Panic(err)
-	}
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered in Init Long Poll Get From VK ", r)
+		}
+		if err := client.InitLongPoll(0, 2); err != nil {
+			log.Panic(err)
+		}
+	}()
 
 	updates, _, err := client.GetLPUpdatesChan(100, vkapi.LPConfig{25, vkapi.LPModeAttachments})
 	if err != nil {
