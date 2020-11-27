@@ -1,3 +1,4 @@
+![GitHub language count](https://img.shields.io/github/languages/count/rhiskey/spigot2vk_admin)
 # spigot2vk_admin
 Resend messages from TCP port to VK Conversation vise versa
 1. Build exec file for: `gox`
