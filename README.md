@@ -3,7 +3,10 @@
 
 ![GitHub Repo stars](https://img.shields.io/github/stars/rhiskey/spigot2vk_admin?style=social)
 # spigot2vk_admin
-Resend messages from TCP port to VK Conversation vise versa
+Resend messages from SpigotMc2Vk-Public to VK/Telegram Conversation vise versa
+
+![Minecraft Console To Telegram Demo](https://media.giphy.com/media/r1ucxbJyQeoYPfXzXR/giphy.gif)
+
 1. Build exec file for: `gox`
 
 You can specify package or platform
