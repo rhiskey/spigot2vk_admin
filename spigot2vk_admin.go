@@ -230,14 +230,14 @@ func getFromVK(token string, isCommunity bool) { //isCommunity == true => messag
 	}
 
 	client.Log(false)
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Println("Recovered in Init Long Poll Get From VK ", r)
-		}
-		if err := client.InitLongPoll(0, 2); err != nil {
-			log.Panic(err)
-		}
-	}()
+	// defer func() {
+	// if r := recover(); r != nil {
+	// 	fmt.Println("Recovered in Init Long Poll Get From VK ", r)
+	// }
+	if err := client.InitLongPoll(0, 2); err != nil {
+		log.Panic(err)
+	}
+	// }()
 
 	updates, _, err := client.GetLPUpdatesChan(100, vkapi.LPConfig{25, vkapi.LPModeAttachments})
 	if err != nil {
@@ -550,12 +550,16 @@ func sendToTG(message string) {
 	bot.Debug = false
 
 	//log.Printf("Authorized on account %s", bot.Self.UserName)
-
-	msg := tgbotapi.NewMessage(consoleChatIDTG, message)
-	//msg.ReplyToMessageID = update.Message.MessageID
-	//log.Printf("%d", consoleChatIDTG)
-	//msg.ChatID = consoleChatIDTG
-	bot.Send(msg)
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Recovered in SendMessage ", r)
+		}
+		msg := tgbotapi.NewMessage(consoleChatIDTG, message)
+		//msg.ReplyToMessageID = update.Message.MessageID
+		//log.Printf("%d", consoleChatIDTG)
+		//msg.ChatID = consoleChatIDTG
+		bot.Send(msg)
+	}()
 }
 
 // RabbitMQ
