@@ -150,7 +150,7 @@ func main() {
 
 	} else {
 		go TCPServer(portTCPConsoleDownlink, false) //Read Console - Send ADMIN CONFA CONSOLE CHAT
-		go getFromVK(vkUserToken, false)            //Read CONSOLE CHAT
+		//go getFromVK(vkUserToken, false)            //Read CONSOLE CHAT
 		go getFromTG(false)
 
 		if enableJSON == "true" {
@@ -381,7 +381,7 @@ func handleConnection(conn net.Conn, isCommunity bool) {
 			//TODO:
 			//queue.PushBack(message)
 
-			sendToVK(vkUserToken, message, IDList, consoleChatID, false)
+			//sendToVK(vkUserToken, message, IDList, consoleChatID, false)
 			sendToTG(message)
 			time.Sleep(2000 * time.Millisecond)
 		}
@@ -532,8 +532,8 @@ func getFromTG(isComm bool) {
 				//Send to MC & VK
 				go TCPClient(update.ChannelPost.Text, portTCPConsoleUplink)
 
-				formattedMsg := "[TG_CONSOLE]: " + update.ChannelPost.Text
-				go sendToVK(vkUserToken, formattedMsg, IDList, consoleChatID, false)
+				// formattedMsg := "[TG_CONSOLE]: " + update.ChannelPost.Text
+				// go sendToVK(vkUserToken, formattedMsg, IDList, consoleChatID, false)
 			}
 		}
 	}
